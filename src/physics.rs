@@ -24,7 +24,7 @@ impl PhysicsState {
         let mut impulse_joint_set = ImpulseJointSet::new();
 
         // center node
-        let center_rb = RigidBodyBuilder::dynamic().translation(vector![100.0, 100.0].into()).linear_damping(5.0).build();
+        let center_rb = RigidBodyBuilder::dynamic().translation(vector![100.0, 100.0].into()).additional_mass(1.0).linear_damping(5.0).build();
         let center_handle = rigid_body_set.insert(center_rb);
         
         let mut outer_handles = Vec::new();
@@ -38,7 +38,7 @@ impl PhysicsState {
             let x = 100.0 + radius * angle.cos();
             let y = 100.0 + radius * angle.sin();
             
-            let outer_rb = RigidBodyBuilder::dynamic().translation(vector![x, y].into()).linear_damping(2.0).build();
+            let outer_rb = RigidBodyBuilder::dynamic().translation(vector![x, y].into()).additional_mass(0.1).linear_damping(2.0).build();
             let handle = rigid_body_set.insert(outer_rb);
             outer_handles.push(handle);
             

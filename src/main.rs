@@ -91,9 +91,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         loop {
             let mut positions = Vec::new();
+            let mut center_pos = (0.0, 0.0);
             {
                 let mut state = physics_clone.lock().unwrap();
                 state.step();
+                
+                if let Some(rb) = state.rigid_body_set.get(state.center_handle) {
+                    let pos = rb.translation();
+                    center_pos = (pos.x, pos.y);
+                }
                 
                 // Get positions of outer nodes
                 for h in &state.outer_handles {
@@ -116,6 +122,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(path) = pb.finish() {
                     pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
                 }
+            }
+            
+            // Draw Face
+            let mut face_paint = Paint::default();
+            face_paint.set_color_rgba8(0, 0, 0, 255); // Black
+            face_paint.anti_alias = true;
+            
+            let mut pb = PathBuilder::new();
+            // Eye 1
+            pb.push_circle(center_pos.0 - 15.0, center_pos.1 - 10.0, 5.0);
+            // Eye 2
+            pb.push_circle(center_pos.0 + 15.0, center_pos.1 - 10.0, 5.0);
+            
+            // Mouth :D
+            pb.move_to(center_pos.0 - 20.0, center_pos.1 + 5.0);
+            pb.line_to(center_pos.0 + 20.0, center_pos.1 + 5.0);
+            pb.cubic_to(
+                center_pos.0 + 20.0, center_pos.1 + 25.0, 
+                center_pos.0 - 20.0, center_pos.1 + 25.0,
+                center_pos.0 - 20.0, center_pos.1 + 5.0
+            );
+            pb.close();
+
+            if let Some(path) = pb.finish() {
+                pixmap.fill_path(&path, &face_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
             }
             
             let buffer = SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
