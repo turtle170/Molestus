@@ -20,6 +20,7 @@ use ai::AiModel;
 
 slint::slint! {
     export component MainWindow inherits Window {
+        title: "Molestus";
         width: 1920px;
         height: 1080px;
         always-on-top: true;
@@ -49,7 +50,7 @@ fn make_window_clickthrough_and_topmost(handle: isize) {
         );
         let _ = SetWindowPos(
             hwnd,
-            HWND_TOPMOST,
+            Some(HWND_TOPMOST),
             0,
             0,
             0,
@@ -63,13 +64,16 @@ fn make_window_clickthrough_and_topmost(handle: isize) {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let main_window = MainWindow::new()?;
 
-    // Need raw-window-handle feature for slint
-    use raw_window_handle::HasRawWindowHandle;
-    match main_window.window().raw_window_handle() {
-        raw_window_handle::RawWindowHandle::Win32(handle) => {
-            make_window_clickthrough_and_topmost(handle.hwnd as isize);
+    #[cfg(target_os = "windows")]
+    {
+        use std::ffi::CString;
+        let title = CString::new("Molestus").unwrap();
+        unsafe {
+            let hwnd_raw = windows::Win32::UI::WindowsAndMessaging::FindWindowA(None, windows::core::PCSTR(title.as_ptr() as _)).unwrap_or_default();
+            if hwnd_raw.0 != std::ptr::null_mut() {
+                make_window_clickthrough_and_topmost(hwnd_raw.0 as isize);
+            }
         }
-        _ => {}
     }
 
     let physics_state = Arc::new(Mutex::new(PhysicsState::new()));
@@ -154,16 +158,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let dir = vector![tx - pos.x, ty - pos.y];
                         let dist = dir.magnitude();
                         if dist > 10.0 {
-                            rb.apply_impulse(dir.normalize() * 50000.0, true);
+                            rb.apply_impulse((dir.normalize() * 50000.0).into(), true);
                         } else {
-                            let mut rng = rand::thread_rng();
+                            let mut rng = rand::rng();
                             let mut handles = state.outer_handles.clone();
                             handles.shuffle(&mut rng);
                             for i in 0..5 {
                                 if let Some(orb) = state.rigid_body_set.get_mut(handles[i]) {
                                     let opos = orb.translation();
                                     let odir = vector![opos.x - pos.x, opos.y - pos.y];
-                                    orb.apply_impulse(odir.normalize() * 10000.0, true);
+                                    orb.apply_impulse((odir.normalize() * 10000.0).into(), true);
                                 }
                             }
                         }
