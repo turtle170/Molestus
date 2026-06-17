@@ -94,6 +94,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let mut stroke = tiny_skia::Stroke::default();
         stroke.width = 4.0;
+        stroke.line_cap = tiny_skia::LineCap::Round;
+        stroke.line_join = tiny_skia::LineJoin::Round;
         let mut stroke_paint = Paint::default();
         stroke_paint.set_color_rgba8(0, 0, 0, 255);
         stroke_paint.anti_alias = true;

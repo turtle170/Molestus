@@ -24,7 +24,7 @@ impl PhysicsState {
         let mut impulse_joint_set = ImpulseJointSet::new();
 
         // center node
-        let center_rb = RigidBodyBuilder::dynamic().translation(vector![100.0, 100.0].into()).additional_mass(1.0).linear_damping(5.0).build();
+        let center_rb = RigidBodyBuilder::dynamic().translation(vector![100.0, 100.0].into()).additional_mass(1.0).linear_damping(1.0).build();
         let center_handle = rigid_body_set.insert(center_rb);
         let center_col = ColliderBuilder::ball(40.0).build();
         collider_set.insert_with_parent(center_col, center_handle, &mut rigid_body_set);
@@ -40,14 +40,14 @@ impl PhysicsState {
             let x = 100.0 + radius * angle.cos();
             let y = 100.0 + radius * angle.sin();
             
-            let outer_rb = RigidBodyBuilder::dynamic().translation(vector![x, y].into()).additional_mass(0.1).linear_damping(2.0).build();
+            let outer_rb = RigidBodyBuilder::dynamic().translation(vector![x, y].into()).additional_mass(0.1).linear_damping(0.5).build();
             let handle = rigid_body_set.insert(outer_rb);
             let col = ColliderBuilder::ball(2.5).build();
             collider_set.insert_with_parent(col, handle, &mut rigid_body_set);
             outer_handles.push(handle);
             
             // Connect to center
-            let joint = SpringJointBuilder::new(radius, 200.0, 10.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
+            let joint = SpringJointBuilder::new(radius, 50.0, 2.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
             let j_handle = impulse_joint_set.insert(center_handle, handle, joint, true);
             center_to_outer_joints.push(j_handle);
         }
@@ -58,7 +58,7 @@ impl PhysicsState {
             let h2 = outer_handles[(i + 1) % num_nodes];
             // exact chord length
             let dist = 2.0 * radius * (std::f32::consts::PI / num_nodes as f32).sin();
-            let joint = SpringJointBuilder::new(dist, 1000.0, 20.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
+            let joint = SpringJointBuilder::new(dist, 100.0, 5.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
             impulse_joint_set.insert(h1, h2, joint, true);
         }
 
@@ -111,7 +111,7 @@ impl PhysicsState {
                             let dy = pt.y as f32 - pos.y;
                             let dist = (dx * dx + dy * dy).sqrt();
                             if dist < 250.0 { // Grab radius
-                                let force = vector![dx * 200.0, dy * 200.0];
+                                let force = vector![dx * 2000.0, dy * 2000.0];
                                 center_rb.apply_impulse(force.into(), true);
                             }
                         }
