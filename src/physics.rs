@@ -70,14 +70,14 @@ impl PhysicsState {
             let h1 = outer_handles[i];
             let h2 = outer_handles[(i + 16) % num_nodes]; // Quarter-circle
             let dist = radius * std::f32::consts::SQRT_2;
-            let joint = SpringJointBuilder::new(dist, 50.0, 2.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
+            let joint = SpringJointBuilder::new(dist, 5.0, 1.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
             impulse_joint_set.insert(h1, h2, joint, true);
         }
         for i in 0..(num_nodes / 2) {
             let h1 = outer_handles[i];
             let h2 = outer_handles[(i + 32) % num_nodes]; // Half-circle
             let dist = radius * 2.0;
-            let joint = SpringJointBuilder::new(dist, 50.0, 2.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
+            let joint = SpringJointBuilder::new(dist, 5.0, 1.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
             impulse_joint_set.insert(h1, h2, joint, true);
         }
 

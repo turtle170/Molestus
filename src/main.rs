@@ -67,16 +67,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let main_window = MainWindow::new()?;
     main_window.show().unwrap();
 
-    #[cfg(target_os = "windows")]
-    {
-        use std::ffi::CString;
-        let title = CString::new("Molestus").unwrap();
-        unsafe {
-            let hwnd_raw = windows::Win32::UI::WindowsAndMessaging::FindWindowA(None, windows::core::PCSTR(title.as_ptr() as _)).unwrap_or_default();
-            if hwnd_raw.0 != std::ptr::null_mut() {
-                make_window_clickthrough_and_topmost(hwnd_raw.0 as isize);
+    #[cfg(target_os = "windows")] 
+    { 
+        std::thread::spawn(move || {
+            use std::ffi::CString;
+            use windows::Win32::UI::WindowsAndMessaging::FindWindowA;
+            let title = CString::new("Molestus").unwrap();
+            for _ in 0..20 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                unsafe {
+                    let hwnd_raw = FindWindowA(None, windows::core::PCSTR(title.as_ptr() as _)).unwrap_or_default();
+                    if hwnd_raw.0 != std::ptr::null_mut() {
+                        make_window_clickthrough_and_topmost(hwnd_raw.0 as isize);
+                        break;
+                    }
+                }
             }
-        }
+        });
     }
 
     let physics_state = Arc::new(Mutex::new(PhysicsState::new()));
