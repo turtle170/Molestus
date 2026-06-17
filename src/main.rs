@@ -63,6 +63,7 @@ fn make_window_clickthrough_and_topmost(handle: isize) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let main_window = MainWindow::new()?;
+    main_window.show().unwrap();
 
     #[cfg(target_os = "windows")]
     {
@@ -86,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::spawn(move || {
         let mut pixmap = Pixmap::new(1920, 1080).unwrap(); 
         let mut paint = Paint::default(); 
-        paint.set_color_rgba8(255, 0, 128, 255); // Neon Pink blob, fully opaque!
+        paint.set_color_rgba8(50, 150, 255, 200); // Blue blob, slightly transparent
         paint.anti_alias = true; 
         
         let mut stroke = tiny_skia::Stroke::default();

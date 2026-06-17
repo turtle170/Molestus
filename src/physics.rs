@@ -20,12 +20,14 @@ pub struct PhysicsState {
 impl PhysicsState {
     pub fn new() -> Self {
         let mut rigid_body_set = RigidBodySet::new();
-        let collider_set = ColliderSet::new();
+        let mut collider_set = ColliderSet::new();
         let mut impulse_joint_set = ImpulseJointSet::new();
 
         // center node
         let center_rb = RigidBodyBuilder::dynamic().translation(vector![100.0, 100.0].into()).additional_mass(1.0).linear_damping(5.0).build();
         let center_handle = rigid_body_set.insert(center_rb);
+        let center_col = ColliderBuilder::ball(40.0).build();
+        collider_set.insert_with_parent(center_col, center_handle, &mut rigid_body_set);
         
         let mut outer_handles = Vec::new();
         let num_nodes = 64;
@@ -40,6 +42,8 @@ impl PhysicsState {
             
             let outer_rb = RigidBodyBuilder::dynamic().translation(vector![x, y].into()).additional_mass(0.1).linear_damping(2.0).build();
             let handle = rigid_body_set.insert(outer_rb);
+            let col = ColliderBuilder::ball(5.0).build();
+            collider_set.insert_with_parent(col, handle, &mut rigid_body_set);
             outer_handles.push(handle);
             
             // Connect to center
@@ -52,10 +56,24 @@ impl PhysicsState {
         for i in 0..num_nodes {
             let h1 = outer_handles[i];
             let h2 = outer_handles[(i + 1) % num_nodes];
-            let dist = (std::f32::consts::TAU / num_nodes as f32).sin() * radius;
+            // exact chord length
+            let dist = 2.0 * radius * (std::f32::consts::PI / num_nodes as f32).sin();
             let joint = SpringJointBuilder::new(dist, 1000.0, 20.0).local_anchor1(point![0.0, 0.0].into()).local_anchor2(point![0.0, 0.0].into());
             impulse_joint_set.insert(h1, h2, joint, true);
         }
+
+        // Wall colliders
+        let thickness = 100.0;
+        let screen_w = 1920.0;
+        let screen_h = 1080.0;
+        let top = ColliderBuilder::cuboid(screen_w, thickness).translation(vector![screen_w / 2.0, -thickness].into()).build();
+        collider_set.insert(top);
+        let bottom = ColliderBuilder::cuboid(screen_w, thickness).translation(vector![screen_w / 2.0, screen_h + thickness].into()).build();
+        collider_set.insert(bottom);
+        let left = ColliderBuilder::cuboid(thickness, screen_h).translation(vector![-thickness, screen_h / 2.0].into()).build();
+        collider_set.insert(left);
+        let right = ColliderBuilder::cuboid(thickness, screen_h).translation(vector![screen_w + thickness, screen_h / 2.0].into()).build();
+        collider_set.insert(right);
 
         Self {
             rigid_body_set,
