@@ -123,7 +123,7 @@ impl PhysicsState {
         let physics_hooks = ();
         let event_handler = ();
         self.physics_pipeline.step(
-            vector![0.0, 0.0].into(),
+            vector![0.0, 1500.0].into(),
             &self.integration_parameters,
             &mut self.island_manager,
             &mut self.broad_phase,
