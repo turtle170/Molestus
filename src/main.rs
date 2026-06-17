@@ -84,10 +84,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let window_handle = main_window.as_weak();
     
     std::thread::spawn(move || {
-        let mut pixmap = Pixmap::new(1920, 1080).unwrap();
-        let mut paint = Paint::default();
-        paint.set_color_rgba8(50, 150, 255, 200); // Blue blob
-        paint.anti_alias = true;
+        let mut pixmap = Pixmap::new(1920, 1080).unwrap(); 
+        let mut paint = Paint::default(); 
+        paint.set_color_rgba8(255, 0, 128, 255); // Neon Pink blob, fully opaque!
+        paint.anti_alias = true; 
+        
+        let mut stroke = tiny_skia::Stroke::default();
+        stroke.width = 4.0;
+        let mut stroke_paint = Paint::default();
+        stroke_paint.set_color_rgba8(0, 0, 0, 255);
+        stroke_paint.anti_alias = true;
         
         loop {
             let mut positions = Vec::new();
@@ -119,34 +125,67 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     pb.line_to(positions[i].0, positions[i].1);
                 }
                 pb.close();
-                if let Some(path) = pb.finish() {
-                    pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
-                }
-            }
+                if let Some(path) = pb.finish() { 
+                    pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None); 
+                    pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
+                } 
+            } 
             
-            // Draw Face
-            let mut face_paint = Paint::default();
-            face_paint.set_color_rgba8(0, 0, 0, 255); // Black
-            face_paint.anti_alias = true;
-            
-            let mut pb = PathBuilder::new();
-            // Eye 1
-            pb.push_circle(center_pos.0 - 15.0, center_pos.1 - 10.0, 5.0);
-            // Eye 2
-            pb.push_circle(center_pos.0 + 15.0, center_pos.1 - 10.0, 5.0);
-            
-            // Mouth :D
-            pb.move_to(center_pos.0 - 20.0, center_pos.1 + 5.0);
-            pb.line_to(center_pos.0 + 20.0, center_pos.1 + 5.0);
-            pb.cubic_to(
-                center_pos.0 + 20.0, center_pos.1 + 25.0, 
-                center_pos.0 - 20.0, center_pos.1 + 25.0,
-                center_pos.0 - 20.0, center_pos.1 + 5.0
-            );
-            pb.close();
+            // Draw Face dynamically mapped to nodes so it bends automatically!
+            if positions.len() == 64 {
+                let mut face_paint = Paint::default(); 
+                face_paint.set_color_rgba8(0, 0, 0, 255); // Black 
+                face_paint.anti_alias = true; 
+                
+                // Eyes ":"
+                let eye1 = (
+                    center_pos.0 + 0.4 * (positions[40].0 - center_pos.0),
+                    center_pos.1 + 0.4 * (positions[40].1 - center_pos.1)
+                );
+                let eye2 = (
+                    center_pos.0 + 0.4 * (positions[24].0 - center_pos.0),
+                    center_pos.1 + 0.4 * (positions[24].1 - center_pos.1)
+                );
 
-            if let Some(path) = pb.finish() {
-                pixmap.fill_path(&path, &face_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                let mut pb = PathBuilder::new(); 
+                pb.push_circle(eye1.0, eye1.1, 7.0); 
+                pb.push_circle(eye2.0, eye2.1, 7.0); 
+                if let Some(path) = pb.finish() { 
+                    pixmap.fill_path(&path, &face_paint, tiny_skia::FillRule::Winding, Transform::identity(), None); 
+                }
+                
+                // Mouth "D"
+                let d_top = (
+                    center_pos.0 + 0.25 * (positions[48].0 - center_pos.0),
+                    center_pos.1 + 0.25 * (positions[48].1 - center_pos.1)
+                );
+                let d_bottom = (
+                    center_pos.0 + 0.25 * (positions[16].0 - center_pos.0),
+                    center_pos.1 + 0.25 * (positions[16].1 - center_pos.1)
+                );
+                let ctrl1 = ( // bottom-right
+                    center_pos.0 + 0.5 * (positions[8].0 - center_pos.0),
+                    center_pos.1 + 0.5 * (positions[8].1 - center_pos.1)
+                );
+                let ctrl2 = ( // top-right
+                    center_pos.0 + 0.5 * (positions[56].0 - center_pos.0),
+                    center_pos.1 + 0.5 * (positions[56].1 - center_pos.1)
+                );
+
+                let mut pb_d = PathBuilder::new();
+                pb_d.move_to(d_top.0, d_top.1);
+                pb_d.line_to(d_bottom.0, d_bottom.1);
+                pb_d.cubic_to(ctrl1.0, ctrl1.1, ctrl2.0, ctrl2.1, d_top.0, d_top.1);
+                pb_d.close();
+
+                let mut d_stroke = tiny_skia::Stroke::default();
+                d_stroke.width = 10.0;
+                d_stroke.line_cap = tiny_skia::LineCap::Round;
+                d_stroke.line_join = tiny_skia::LineJoin::Round;
+
+                if let Some(path) = pb_d.finish() { 
+                    pixmap.stroke_path(&path, &face_paint, &d_stroke, Transform::identity(), None); 
+                } 
             }
             
             let buffer = SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
@@ -204,7 +243,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_secs(5)).await; 
         }
     });
 
