@@ -124,14 +124,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 pixmap.height(),
             );
             
-            let img = Image::from_rgba8(buffer);
-            
-            if let Some(w) = window_handle.upgrade() {
-                let img_clone = img.clone();
-                let _ = slint::invoke_from_event_loop(move || {
-                    w.set_blob_image(img_clone);
-                });
-            }
+            let window_handle_clone = window_handle.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(w) = window_handle_clone.upgrade() {
+                    let img = Image::from_rgba8(buffer);
+                    w.set_blob_image(img);
+                }
+            });
             
             std::thread::sleep(Duration::from_millis(16));
         }
