@@ -42,7 +42,7 @@ impl PhysicsState {
             
             let outer_rb = RigidBodyBuilder::dynamic().translation(vector![x, y].into()).additional_mass(0.1).linear_damping(2.0).build();
             let handle = rigid_body_set.insert(outer_rb);
-            let col = ColliderBuilder::ball(5.0).build();
+            let col = ColliderBuilder::ball(2.5).build();
             collider_set.insert_with_parent(col, handle, &mut rigid_body_set);
             outer_handles.push(handle);
             
@@ -94,7 +94,32 @@ impl PhysicsState {
     }
 
     pub fn step(&mut self) {
-        let gravity = vector![0.0, 0.0];
+        #[cfg(target_os = "windows")]
+        {
+            use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+            use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+            use windows::Win32::Foundation::POINT;
+
+            unsafe {
+                let state = GetAsyncKeyState(VK_LBUTTON.0 as i32);
+                if (state as u16 & 0x8000) != 0 {
+                    let mut pt = POINT { x: 0, y: 0 };
+                    if GetCursorPos(&mut pt).is_ok() {
+                        if let Some(center_rb) = self.rigid_body_set.get_mut(self.center_handle) {
+                            let pos = center_rb.translation();
+                            let dx = pt.x as f32 - pos.x;
+                            let dy = pt.y as f32 - pos.y;
+                            let dist = (dx * dx + dy * dy).sqrt();
+                            if dist < 250.0 { // Grab radius
+                                let force = vector![dx * 200.0, dy * 200.0];
+                                center_rb.apply_impulse(force.into(), true);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let physics_hooks = ();
         let event_handler = ();
         self.physics_pipeline.step(

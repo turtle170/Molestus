@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use slint::{Image, SharedPixelBuffer};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
