@@ -149,47 +149,59 @@ impl PhysicsState {
                             let dx = pt.x as f32 - pos.x;
                             let dy = pt.y as f32 - pos.y;
                             let dist = (dx * dx + dy * dy).sqrt();
-                            if dist < 250.0 { // Grab radius
-                                let force = vector![dx * 2000.0, dy * 2000.0];
-                                center_rb.apply_impulse(force.into(), true);
-                            }
+                            if dist < 250.0 { // Grab radius 
+                                let force = vector![dx * 5.0, dy * 5.0]; 
+                                center_rb.apply_impulse(force.into(), true); 
+                            } 
                         }
                     }
                 }
             }
         }
 
-        let physics_hooks = ();
-        let event_handler = ();
-        self.physics_pipeline.step(
-            vector![0.0, 1500.0].into(),
-            &self.integration_parameters,
-            &mut self.island_manager,
-            &mut self.broad_phase,
-            &mut self.narrow_phase,
-            &mut self.rigid_body_set,
-            &mut self.collider_set,
-            &mut self.impulse_joint_set,
-            &mut self.multibody_joint_set,
-            &mut self.ccd_solver,
-            &physics_hooks,
-            &event_handler,
-        );
-
-        // Check if blob is inverted or crushed
-        let volume = self.calculate_volume();
-        let mut recreate_springs = false;
+        let physics_hooks = (); 
+        let event_handler = (); 
+        self.physics_pipeline.step( 
+            vector![0.0, 1500.0].into(), 
+            &self.integration_parameters, 
+            &mut self.island_manager, 
+            &mut self.broad_phase, 
+            &mut self.narrow_phase, 
+            &mut self.rigid_body_set, 
+            &mut self.collider_set, 
+            &mut self.impulse_joint_set, 
+            &mut self.multibody_joint_set, 
+            &mut self.ccd_solver, 
+            &physics_hooks, 
+            &event_handler, 
+        ); 
         
-        if volume < 500.0 { // Collapsed
-            self.spring_stiffness *= 1.5;
-            self.spring_length *= 1.1;
-            recreate_springs = true;
-        } else if self.spring_stiffness > 50.0 || self.spring_length > 60.0 {
-            // Relax gradually
-            self.spring_stiffness = (self.spring_stiffness * 0.98).max(50.0);
-            self.spring_length = (self.spring_length * 0.98).max(60.0);
-            recreate_springs = true;
+        // Failsafe: if physics exploded to NaN, reset everything
+        let center_pos = self.rigid_body_set.get(self.center_handle).unwrap().translation();
+        if center_pos.x.is_nan() || center_pos.y.is_nan() {
+            for (_handle, rb) in self.rigid_body_set.iter_mut() {
+                rb.set_translation(vector![100.0, 100.0].into(), true);
+                rb.set_linvel(vector![0.0, 0.0].into(), true);
+            }
+            self.spring_stiffness = 50.0;
+            self.spring_length = 60.0;
+            return;
         }
+ 
+        // Check if blob is inverted or crushed 
+        let volume = self.calculate_volume(); 
+        let mut recreate_springs = false; 
+         
+        if volume < 500.0 && !volume.is_nan() { // Collapsed  
+            self.spring_stiffness = (self.spring_stiffness * 1.5).min(200.0); 
+            self.spring_length = (self.spring_length * 1.1).min(120.0); 
+            recreate_springs = true; 
+        } else if self.spring_stiffness > 50.0 || self.spring_length > 60.0 { 
+            // Relax gradually 
+            self.spring_stiffness = (self.spring_stiffness * 0.95).max(50.0); 
+            self.spring_length = (self.spring_length * 0.95).max(60.0); 
+            recreate_springs = true; 
+        } 
         
         if recreate_springs {
             for i in 0..self.center_to_outer_joints.len() {

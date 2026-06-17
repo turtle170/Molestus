@@ -239,7 +239,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let dir = vector![tx - pos.x, ty - pos.y];
                         let dist = dir.magnitude();
                         if dist > 10.0 {
-                            rb.apply_impulse((dir.normalize() * 50000.0).into(), true);
+                            rb.apply_impulse((dir.normalize() * 500.0).into(), true);
                         } else {
                             let mut rng = rand::rng();
                             let mut handles = state.outer_handles.clone();
@@ -248,7 +248,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if let Some(orb) = state.rigid_body_set.get_mut(handles[i]) {
                                     let opos = orb.translation();
                                     let odir = vector![opos.x - pos.x, opos.y - pos.y];
-                                    orb.apply_impulse((odir.normalize() * 10000.0).into(), true);
+                                    orb.apply_impulse((odir.normalize() * 50.0).into(), true);
                                 }
                             }
                         }
