@@ -15,6 +15,8 @@ pub struct PhysicsState {
     pub outer_handles: Vec<RigidBodyHandle>,
     pub splat_active: bool,
     pub center_to_outer_joints: Vec<ImpulseJointHandle>,
+    pub spring_length: f32,
+    pub spring_stiffness: f32,
 }
 
 impl PhysicsState {
@@ -27,7 +29,7 @@ impl PhysicsState {
         let group_outer = Group::GROUP_2;
 
         // center node
-        let center_rb = RigidBodyBuilder::dynamic().translation(vector![100.0, 100.0].into()).additional_mass(0.1).linear_damping(1.0).ccd_enabled(true).build();
+        let center_rb = RigidBodyBuilder::dynamic().translation(vector![100.0, 100.0].into()).additional_mass(0.1).linear_damping(0.1).ccd_enabled(true).build();
         let center_handle = rigid_body_set.insert(center_rb);
         let center_col = ColliderBuilder::ball(40.0).collision_groups(InteractionGroups::all().with_memberships(group_wall).with_filter(Group::ALL)).build();
         collider_set.insert_with_parent(center_col, center_handle, &mut rigid_body_set);
@@ -43,7 +45,7 @@ impl PhysicsState {
             let x = 100.0 + radius * angle.cos();
             let y = 100.0 + radius * angle.sin();
             
-            let outer_rb = RigidBodyBuilder::dynamic().translation(vector![x, y].into()).additional_mass(0.1).linear_damping(0.5).ccd_enabled(true).build();
+            let outer_rb = RigidBodyBuilder::dynamic().translation(vector![x, y].into()).additional_mass(0.1).linear_damping(0.05).ccd_enabled(true).build();
             let handle = rigid_body_set.insert(outer_rb);
             let col = ColliderBuilder::ball(2.5).collision_groups(InteractionGroups::all().with_memberships(group_outer).with_filter(group_wall)).build();
             collider_set.insert_with_parent(col, handle, &mut rigid_body_set);
@@ -109,7 +111,25 @@ impl PhysicsState {
             outer_handles,
             splat_active: false,
             center_to_outer_joints,
+            spring_length: 60.0,
+            spring_stiffness: 50.0,
         }
+    }
+
+    pub fn calculate_volume(&self) -> f32 {
+        let mut area = 0.0;
+        let num = self.outer_handles.len();
+        if num == 0 { return 0.0; }
+        for i in 0..num {
+            let h1 = self.outer_handles[i];
+            let h2 = self.outer_handles[(i + 1) % num];
+            if let (Some(rb1), Some(rb2)) = (self.rigid_body_set.get(h1), self.rigid_body_set.get(h2)) {
+                let p1 = rb1.translation();
+                let p2 = rb2.translation();
+                area += p1.x * p2.y - p1.y * p2.x;
+            }
+        }
+        (area / 2.0).abs()
     }
 
     pub fn step(&mut self) {
@@ -155,5 +175,34 @@ impl PhysicsState {
             &physics_hooks,
             &event_handler,
         );
+
+        // Check if blob is inverted or crushed
+        let volume = self.calculate_volume();
+        let mut recreate_springs = false;
+        
+        if volume < 500.0 { // Collapsed
+            self.spring_stiffness *= 1.5;
+            self.spring_length *= 1.1;
+            recreate_springs = true;
+        } else if self.spring_stiffness > 50.0 || self.spring_length > 60.0 {
+            // Relax gradually
+            self.spring_stiffness = (self.spring_stiffness * 0.98).max(50.0);
+            self.spring_length = (self.spring_length * 0.98).max(60.0);
+            recreate_springs = true;
+        }
+        
+        if recreate_springs {
+            for i in 0..self.center_to_outer_joints.len() {
+                let handle = self.center_to_outer_joints[i];
+                self.impulse_joint_set.remove(handle, true);
+                
+                let h2 = self.outer_handles[i];
+                let joint = SpringJointBuilder::new(self.spring_length, self.spring_stiffness, 2.0)
+                    .local_anchor1(point![0.0, 0.0].into())
+                    .local_anchor2(point![0.0, 0.0].into());
+                let new_handle = self.impulse_joint_set.insert(self.center_handle, h2, joint, true);
+                self.center_to_outer_joints[i] = new_handle;
+            }
+        }
     }
 }
